@@ -1,6 +1,6 @@
 package nl.wwbakker.catssandbox.chapter4
 import cats._
-import cats.implicits._
+
 
 
 object F {
@@ -24,10 +24,22 @@ object F {
 
     override def flatMap[A, B](fa: Tree[A])(f: A => Tree[B]): Tree[B] =
       fa match {
-        case Leaf(a) => f(a)
-        case Branch(l, r) =>
+        case Leaf(x) => f(x)
+        case Branch(left, right) => Branch(flatMap(left)(f), flatMap(right)(f))
       }
 
-    override def tailRecM[A, B](a: A)(f: A => Tree[Either[A, B]]): Tree[B] = ???
+    override def tailRecM[A, B](a: A)(fn: A => Tree[Either[A, B]]): Tree[B] = {
+      def eitherHelper(either : Either[A, B]) : Tree[B] = {
+        either match {
+          case Left(a1) => tailRecM(a1)(fn)
+          case Right(b) => pure(b)
+        }
+      }
+
+      fn(a) match {
+        case Leaf(x) => eitherHelper(x)
+        case Branch(x, y) => Branch(flatMap(x)(eitherHelper), flatMap(y)(eitherHelper))
+      }
+    }
   }
 }
