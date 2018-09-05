@@ -1,12 +1,7 @@
 package nl.wwbakker.catssandbox.chapter6
 
 import cats.implicits._
-import cats._
 import cats.data.{NonEmptyList, Validated}
-
-import scala.util.{Failure, Success, Try}
-//import cats.data.Validated
-//import cats.syntax.validated._
 
 object B {
 
@@ -48,10 +43,7 @@ object B {
       .flatMap(nonNegative("age"))
 
   def readUser(formData: FormData) : Validated[NonEmptyList[String], User] =
-    for {
-      name <- readName(formData).toValidated
-      age  <- readAge(formData).toValidated
-    } yield User(name, age)
+    (readName(formData).toValidated, readAge(formData).toValidated).mapN(User.apply)
 
 
   //  def readName(formValues : Map[String, String]) : ErrorsOr[String] =
