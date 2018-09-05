@@ -2,8 +2,6 @@ package nl.wwbakker.catssandbox.chapter5
 
 
 import cats.data.EitherT
-import cats.syntax.applicative._
-import cats.syntax.flatMap._
 import cats.instances.future._
 import concurrent.duration._
 
