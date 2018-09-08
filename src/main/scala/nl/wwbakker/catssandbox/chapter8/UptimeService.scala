@@ -11,7 +11,7 @@ class UptimeService[F[_] : Applicative](client: UptimeClient[F]) {
 }
 
 object Test {
-  def testTotalUptime() = {
+  def testTotalUptime(): Unit = {
     val hosts    = Map("host1" -> 10, "host2" -> 6)
     val client   = new TestUptimeClient(hosts)
     val service  = new UptimeService(client)
