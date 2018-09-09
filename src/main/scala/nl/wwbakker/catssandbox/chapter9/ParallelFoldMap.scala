@@ -3,6 +3,8 @@ package nl.wwbakker.catssandbox.chapter9
 import cats.Monoid
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import cats.instances.future._
 
 object ParallelFoldMap {
   def parallelFoldMap[A, B : Monoid]
