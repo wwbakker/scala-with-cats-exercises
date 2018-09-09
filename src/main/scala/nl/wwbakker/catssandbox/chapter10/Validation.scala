@@ -4,25 +4,39 @@ import cats.data.NonEmptyList
 import cats._
 import cats.implicits._
 
-//trait Check[E, A] {
-//  self =>
-//
-//  def apply(value: A): Either[E, A]
-//
-//  def and(that: Check[E, A])(implicit andS : Semigroup[CheckA[E]]) : Check[E, A] =
-//    andS.combine(self, that)
-//
-//}
-
-case class Check[E, A](f : A => Either[E, A]) {
-  def and(other : Check[E, A])(implicit s : Semigroup[E]) : Check[E, A] =
-    Check{ a =>
+case class CheckF[E, A](f : A => Either[E, A]) {
+  def and(other : CheckF[E, A])(implicit s : Semigroup[E]) : CheckF[E, A] =
+    CheckF{ a =>
       (f(a), other.f(a)) match {
         case (Left(e1), Left(e2)) => Left(s.combine(e1, e2))
         case (Left(e), Right(_)) => Left(e)
         case (Right(_), Left(e)) => Left(e)
         case (Right(v), _) => Right(v)
       }
+    }
+}
+
+object Check {
+  def apply[E, A](f : A => Either[E, A]) : Check[E, A] = Pure(f)
+}
+
+trait Check[E, A] {
+  def check(value: A)(implicit s : Semigroup[E]): Either[E, A]
+
+  def and(other : Check[E, A]) : Check[E, A] =
+    And(this, other)
+
+}
+case class Pure[E, A](f : A => Either[E, A]) extends Check[E, A] {
+  override def check(value: A)(implicit s : Semigroup[E]): Either[E, A] = f(value)
+}
+case class And[E, A](left : Check[E, A], right : Check[E, A]) extends Check[E, A] {
+  override def check(value: A)(implicit s : Semigroup[E]): Either[E, A] =
+    (left.check(value)(s), right.check(value)(s)) match {
+      case (Left(e1), Left(e2)) => Left(s.combine(e1, e2))
+      case (Left(e), Right(_)) => Left(e)
+      case (Right(_), Left(e)) => Left(e)
+      case (Right(v), _) => Right(v)
     }
 }
 
