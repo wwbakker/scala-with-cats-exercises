@@ -1,11 +1,8 @@
-package nl.wwbakker.catssandbox.chapter10
+package nl.wwbakker.catssandbox.chapter9
 
 import cats.Monoid
-import nl.wwbakker.catssandbox.chapter9.FoldMap
 
 import scala.concurrent.Future
-import cats.instances.future._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 object ParallelFoldMap {
   def parallelFoldMap[A, B : Monoid]
