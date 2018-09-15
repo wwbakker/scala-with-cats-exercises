@@ -19,36 +19,35 @@ import cats.data.Validated.Valid
 //}
 //
 
-object Check {
-  def apply[E, A](f : A => Validated[E, A]) : Check[E, A] = Pure(f)
+object Predicate {
+  def apply[E, A](f : A => Validated[E, A]) : Predicate[E, A] = Pure(f)
 }
 
-trait Check[E, A] {
-  def check(value: A)(implicit s : Semigroup[E]): Validated[E, A]
+trait Predicate[E, A] {
+  def apply(value: A)(implicit s : Semigroup[E]): Validated[E, A]
 
-  def and(other : Check[E, A]) : Check[E, A] =
+  def and(other : Predicate[E, A]) : Predicate[E, A] =
     And(this, other)
-
 }
-case class Pure[E, A](f : A => Validated[E, A]) extends Check[E, A] {
-  override def check(value: A)(implicit s : Semigroup[E]): Validated[E, A] = f(value)
+case class Pure[E, A](f : A => Validated[E, A]) extends Predicate[E, A] {
+  override def apply(value: A)(implicit s : Semigroup[E]): Validated[E, A] = f(value)
 }
-case class And[E, A](left : Check[E, A], right : Check[E, A]) extends Check[E, A] {
+case class And[E, A](left : Predicate[E, A], right : Predicate[E, A]) extends Predicate[E, A] {
   implicit val takeFirstSemigroup : Semigroup[A] = new Semigroup[A] {
     override def combine(x: A, y: A): A = x
   }
 
-  override def check(value: A)(implicit s : Semigroup[E]): Validated[E, A] =
-    left.check(value).combine(right.check(value))
+  override def apply(value: A)(implicit s : Semigroup[E]): Validated[E, A] =
+    left.apply(value).combine(right.apply(value))
 }
 
-case class Or[E, A](left : Check[E, A], right : Check[E, A]) extends Check[E, A] {
+case class Or[E, A](left : Predicate[E, A], right : Predicate[E, A]) extends Predicate[E, A] {
   implicit val takeFirstSemigroup : Semigroup[A] = new Semigroup[A] {
     override def combine(x: A, y: A): A = x
   }
 
-  override def check(value: A)(implicit s: Semigroup[E]): Validated[E, A] =
-    (left.check(value), right.check(value)) match {
+  override def apply(value: A)(implicit s: Semigroup[E]): Validated[E, A] =
+    (left.apply(value), right.apply(value)) match {
       case (Valid(x), _) => x.valid[E]
       case (_, Valid(x)) => x.valid[E]
       case (x, y) => x.combine(y)
@@ -56,16 +55,18 @@ case class Or[E, A](left : Check[E, A], right : Check[E, A]) extends Check[E, A]
 }
 
 object TestCheck {
-  type CheckEL[A] = Check[NonEmptyList[String], A]
+  type PredicateNEL[A] = Predicate[NonEmptyList[String], A]
 
   type ErrorOr[A] = Validated[NonEmptyList[String], A]
 
-  val valueNonEmpty : CheckEL[String] = Check[NonEmptyList[String], String](
+  val valueNonEmpty : PredicateNEL[String] = Predicate[NonEmptyList[String], String](
       _.pure[ErrorOr].ensure(NonEmptyList("value is empty", Nil))(_.nonEmpty))
 
-  val atLeast4Characters : CheckEL[String] = Check[NonEmptyList[String], String](
+  val atLeast4Characters : PredicateNEL[String] = Predicate[NonEmptyList[String], String](
     _.pure[ErrorOr].ensure(NonEmptyList("value must be at least 4 characters", Nil))(_.length >= 4)
   )
 
-  val both : CheckEL[String] = valueNonEmpty.and(atLeast4Characters)
+  val both : PredicateNEL[String] = valueNonEmpty.and(atLeast4Characters)
+
+  val val1: ErrorOr[String] = both("4341")
 }
