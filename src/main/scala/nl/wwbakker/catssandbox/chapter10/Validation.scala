@@ -1,9 +1,8 @@
 package nl.wwbakker.catssandbox.chapter10
 
-import cats.data.NonEmptyList
+import cats.data.{Kleisli, NonEmptyList, Validated}
 import cats._
 import cats.implicits._
-import cats.data.Validated
 import cats.data.Validated.{Invalid, Valid}
 
 //case class CheckF[E, A](f : A => Either[E, A]) {
@@ -28,6 +27,8 @@ trait Predicate[E, A] {
 
   def and(other : Predicate[E, A]) : Predicate[E, A] =
     And(this, other)
+
+  def run(a: A)(implicit s : Semigroup[E]) : Either[E, A] = apply(a).toEither
 }
 case class Pure[E, A](f : A => Validated[E, A]) extends Predicate[E, A] {
   override def apply(value: A)(implicit s : Semigroup[E]): Validated[E, A] = f(value)
@@ -120,4 +121,9 @@ object TestCheck {
   val val1: ErrorOr[String] = both("4341")
 
   val checkBoth : ErrorOr[Int] = Check(both).map(_.toInt).andThen(Check(isEven))("2001")
+  type EitherOr[A] = Either[NonEmptyList[String], A]
+
+  val kleisliCheck : EitherOr[Int] =
+    Kleisli[EitherOr, String, String](both.run).map(_.toInt)
+      .andThen(Kleisli[EitherOr, Int, Int](isEven.run)).apply("2001")
 }
