@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats._
 import cats.implicits._
 import cats.data.Validated
-import cats.data.Validated.Valid
+import cats.data.Validated.{Invalid, Valid}
 
 //case class CheckF[E, A](f : A => Either[E, A]) {
 //  def and(other : CheckF[E, A])(implicit s : Semigroup[E]) : CheckF[E, A] =
@@ -54,6 +54,51 @@ case class Or[E, A](left : Predicate[E, A], right : Predicate[E, A]) extends Pre
     }
 }
 
+sealed trait Check[E, A, B] {
+  def apply(a: A)(implicit s : Semigroup[E]): Validated[E, B]
+
+  def map[C](func: A => C): Check[E, A, C] =
+    CheckMap[E, A, B, C](this, func)
+
+  def flatMap[C](func : A => Check[E, A, C]) : Check[E, A, C] =
+    CheckFlatMap(this, func)
+
+  def andThen[C](that: Check[E, B, C]): Check[E, A, C] =
+    CheckAndThen[E, A, B, C](this, that)
+}
+object Check {
+  def apply[E, A](predicate: Predicate[E, A]) = CheckPure(predicate)
+}
+
+case class CheckPure[E, A](predicate: Predicate[E, A]) extends Check[E, A, A] {
+  override def apply(a: A)(implicit s : Semigroup[E]): Validated[E, A] = predicate(a)
+}
+
+case class CheckMap[E, A, B, C](check: Check[E, A, B], f : A => C) extends Check[E, A, C] {
+  override def apply(a: A)(implicit s : Semigroup[E]): Validated[E, C] =
+    check(a) match {
+      case Valid(_) => Valid(f(a))
+      case invalid @ Invalid(_) => invalid
+    }
+}
+case class CheckFlatMap[E, A, B, C](check: Check[E, A, B], f : A => Check[E, A, C]) extends Check[E, A, C] {
+  override def apply(a: A)(implicit s : Semigroup[E]): Validated[E, C] =
+    check(a) match {
+      case Valid(_) => f(a)(a)
+      case invalid @ Invalid(_) => invalid
+    }
+}
+
+case class CheckAndThen[E, A, B, C](check : Check[E, A, B], otherCheck : Check[E, B, C]) extends Check[E, A, C] {
+  override def apply(a: A)(implicit s: Semigroup[E]): Validated[E, C] =
+    check(a) match {
+      case Valid(v1) => otherCheck(v1)
+      case e @ Invalid(_) => e
+    }
+}
+
+
+
 object TestCheck {
   type PredicateNEL[A] = Predicate[NonEmptyList[String], A]
 
@@ -66,7 +111,13 @@ object TestCheck {
     _.pure[ErrorOr].ensure(NonEmptyList("value must be at least 4 characters", Nil))(_.length >= 4)
   )
 
+  val isEven : PredicateNEL[Int] = Predicate[NonEmptyList[String], Int](
+    _.pure[ErrorOr].ensure(NonEmptyList("value must be even", Nil))(_ % 2 == 0)
+  )
+
   val both : PredicateNEL[String] = valueNonEmpty.and(atLeast4Characters)
 
   val val1: ErrorOr[String] = both("4341")
+
+  val checkBoth : ErrorOr[Int] = Check(both).map(_.toInt).andThen(Check(isEven))("2001")
 }
